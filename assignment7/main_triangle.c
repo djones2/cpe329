@@ -7,7 +7,7 @@
 #include "dac.h"
 int state = ON;
 volatile int count = 0;
-int data = 1441;
+int data = 1261;
 
 /**
  * main.c
@@ -16,13 +16,13 @@ int data = 1441;
 void TA0_0_IRQHandler(void) {
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG; //clear the interrupt flag
     if (state == ON) {
-        data++;
-        if (data == 3573)
+        data+=2;
+        if (data == 3723)
             state = OFF;
     }
     else {
-        data--;
-        if (data == 1441)
+        data-=2;
+        if (data == 1261)
             state = ON;
     }
     driveDAC(data);
@@ -52,7 +52,7 @@ void main(void)
 
     // interrupt stuff
     TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
-    TIMER_A0->CCR[0] = 48;
+    TIMER_A0->CCR[0] = 96;
     TIMER_A0->CTL |= TIMER_A_CTL_SSEL__SMCLK | // SMCLK, up mode
                     TIMER_A_CTL_MC__UP;
 
