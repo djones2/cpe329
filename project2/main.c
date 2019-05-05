@@ -7,6 +7,7 @@
 #include "dac.h"
 #include "keypad.h"
 #include "wavegen.h"
+#include "LCD.h"
 #include <stdint.h>
 #include <math.h>
 
@@ -73,18 +74,28 @@ void setFrequency(int frequency)
     {
         case 100:
             count = 1;
+            set_line(0x40);
+            write_string("100 Hz");
             break;
         case 200:
             count = 2;
+            set_line(0x40);
+            write_string("200 Hz");
             break;
         case 300:
             count = 3;
+            set_line(0x40);
+            write_string("300 Hz");
             break;
         case 400:
             count = 4;
+            set_line(0x40);
+            write_string("400 Hz");
             break;
         case 500:
             count = 5;
+            set_line(0x40);
+            write_string("500 Hz");
             break;
     }
 }
@@ -104,7 +115,7 @@ void setSineWave()
     int i = 0;
     for(i=0; i<MAX_INDEX; i++)
     {
-        sine_wave[i] = (sin((i * M_PI)/500) +1) * 1024;//2048; // DOUBLE SIZE OF SINE WAVE TABLE and multiply again by 2048
+        sine_wave[i] = (sin((i * M_PI)/500) +1) * 2047; // DOUBLE SIZE OF SINE WAVE TABLE and multiply again by 2048
     }
 }
 
@@ -127,12 +138,24 @@ void main(void)
     CS->CTL1 |= CS_CTL1_DIVS_2 | CS_CTL1_SELS_3; //set SELS and DIVS
     CS->KEY = 0; // lock the CS registers
 
+
     //---for test
     P2->DIR = 0;
     P2->DIR |= BIT7;
     P2->REN |= BIT7;
 
+    // Map Ports 4.0-4.3 for DB4-DB7
+    P4->SEL0 &= ~(BIT3|BIT2|BIT1|BIT0);
+    P4->SEL1 &= ~(BIT3|BIT2|BIT1|BIT0);
+    P4->DIR |= (BIT3|BIT2|BIT1|BIT0);
+
+    // Map Ports 3.5-3.7 for RS, RW, and EN
+    P3->SEL0 &= ~(BIT5|BIT6|BIT7);
+    P3->SEL1 &= ~(BIT5|BIT6|BIT7);
+    P3->DIR |= (BIT5|BIT6|BIT7);
+
     keypad_init(); //set up keypad using P5.0-5.7 (excluding P5.3)
+    lcd_init();
 
     EUSCI_B0->CTLW0 |= EUSCI_B_CTLW0_SWRST; // Reset serial peripheral
     EUSCI_B0->CTLW0 |= EUSCI_B_CTLW0_CKPL       //Clock inactive for high mode
@@ -161,6 +184,11 @@ void main(void)
     setSquareWave(50); //default = 50% duty cycle
     setSineWave();
     setSawtoothWave();
+
+    set_line(0x0);
+    write_string("SQUARE WAVE");
+    set_line(0x40);
+    write_string("100 Hz");
 
     while(1){
         input = key_press();
@@ -194,6 +222,7 @@ void main(void)
         else if(input == '7')
         {
             waveform = SQUARE;
+            clear_LCD();
             //set to default 100Hz 50% duty cycle square wave -- enable second interrupt
             setSquareWave(50);
             setFrequency(100);
@@ -201,11 +230,17 @@ void main(void)
         else if(input == '8')
         {
             waveform = SINE;
+            clear_LCD();
+            set_line(0x0);
+            write_string("SINE WAVE");
             setFrequency(100);
         }
         else if(input == '9')
         {
             waveform = SAWTOOTH;
+            clear_LCD();
+            set_line(0x0);
+            write_string("SAWTOOTH WAVE");
             setFrequency(100);
         }
     }
