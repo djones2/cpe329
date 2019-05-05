@@ -19,7 +19,7 @@ int square_wave[1000];
 int sine_wave[1000];
 int sawtooth_wave[1000];
 
-volatile int dutyCycle = 50; //default to 50% duty cycle
+int dutyCycle = 50; //default to 50% duty cycle
 int maxCount = 1000;
 int frequency = 100; //default to 100Hz frequency
 int period = 256; //period is the constant value that the CCR's will add because in continuous mode
@@ -48,31 +48,22 @@ void TA0_0_IRQHandler(void) {
     }
     else if(waveform == SINE)
     {
-        data = sine_wave[index];
-        if(index == MAX_INDEX -1)
+        if(index >= MAX_INDEX -1)
             index = 0;
         else
             index+= count; //TIMER_A0->CCR[0];
+        data = sine_wave[index];
         driveDAC(data);
     }
     else if(waveform == SAWTOOTH)
     {
-        data = sawtooth_wave[index];
-        driveDAC(data);
-        if(index == MAX_INDEX - 1)
+        if(index >= MAX_INDEX - 1)
             index = 0;
         else
             index+= count; //TIMER_A0->CCR[0];
+        data = sawtooth_wave[index];
+        driveDAC(data);
     }
-}
-
-
-void setDutyCycle(int newDC)
-{
-    if(newDC > 90 || newDC <10)
-        return;
-    dutyCycle = newDC;
-    setSquareWave(newDC);
 }
 
 void setFrequency(int frequency)
@@ -113,7 +104,7 @@ void setSineWave()
     int i = 0;
     for(i=0; i<MAX_INDEX; i++)
     {
-        sine_wave[i] = (sin((i * M_PI)/500) +1) * 2048;
+        sine_wave[i] = (sin((i * M_PI)/500) +1) * 1024;//2048; // DOUBLE SIZE OF SINE WAVE TABLE and multiply again by 2048
     }
 }
 
@@ -121,7 +112,7 @@ void setSawtoothWave()
 {
     int i = 0;
     for(i = 0; i < MAX_INDEX; i++)
-        sawtooth_wave[i] = 5 * i;
+        sawtooth_wave[i] = 4 * i;
 }
 
 void main(void)
@@ -129,7 +120,6 @@ void main(void)
     int input;
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
     set_DCO(FREQ_48_MHz); //Set SMCLK to 12 MHz
-    //printf("%d",sizeof(sinewave));
 
     //set SMCLK
     // set SMCLK to 12MHz.
@@ -175,11 +165,22 @@ void main(void)
     while(1){
         input = key_press();
         if (input =='*' && waveform == SQUARE)
-            setDutyCycle(dutyCycle - 10);
+        {
+            if(dutyCycle > 10)
+                dutyCycle = dutyCycle - 10;
+            setSquareWave(dutyCycle);
+        }
         else if(input == '0' && waveform == SQUARE)
-            setDutyCycle(50);
+        {
+            dutyCycle = 50;
+            setSquareWave(50);
+        }
         else if(input == '#' && waveform == SQUARE)
-            setDutyCycle(dutyCycle + 10);
+        {
+            if(dutyCycle <90)
+                dutyCycle = dutyCycle +10;
+            setSquareWave(dutyCycle);
+        }
         else if(input == '1')
             setFrequency(100);
         else if(input == '2')
@@ -195,17 +196,17 @@ void main(void)
             waveform = SQUARE;
             //set to default 100Hz 50% duty cycle square wave -- enable second interrupt
             setSquareWave(50);
-            //TIMER_A0->CCR[0] = 256;
+            setFrequency(100);
         }
         else if(input == '8')
         {
             waveform = SINE;
+            setFrequency(100);
         }
         else if(input == '9')
         {
             waveform = SAWTOOTH;
+            setFrequency(100);
         }
-
-        driveDAC(0xFFF);
     }
 }

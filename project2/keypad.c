@@ -56,6 +56,7 @@ uint8_t key_press()
         key = '*';
     else if (key == 0x3C)
         key = '#';
+    delay_us(80000);
     return key;
 }
 
