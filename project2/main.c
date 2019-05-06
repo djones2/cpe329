@@ -224,6 +224,9 @@ void main(void)
             waveform = SQUARE;
             clear_LCD();
             //set to default 100Hz 50% duty cycle square wave -- enable second interrupt
+            clear_LCD();
+            set_line(0x0);
+            write_string("SQUARE WAVE");
             setSquareWave(50);
             setFrequency(100);
         }

@@ -8,10 +8,7 @@
 #include "dac.h"
 #include "msp432.h"
 
-int lookup(int index)
-{
-    return sinewave[index];
-}
+
 
 
 
