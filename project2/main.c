@@ -6,10 +6,14 @@
 #include "delay.h"
 #include "dac.h"
 #include "keypad.h"
-#include "wavegen.h"
 #include "LCD.h"
 #include <stdint.h>
 #include <math.h>
+
+#define SQUARE 7
+#define SINE 8
+#define SAWTOOTH 9
+#define MAX_INDEX 1000
 
 int waveform = SQUARE; //default to square wave
 volatile int count = 1;
@@ -22,7 +26,7 @@ int sawtooth_wave[1000];
 
 int dutyCycle = 50; //default to 50% duty cycle
 int maxCount = 1000;
-int frequency = 100; //default to 100Hz frequency
+int frequency = 500; //default to 100Hz frequency
 int period = 256; //period is the constant value that the CCR's will add because in continuous mode
 
 /**
