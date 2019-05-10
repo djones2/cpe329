@@ -28,13 +28,12 @@ void main(void)
                 | ADC14_CTL0_SHT0_0;
 
     // Use 14-bit conversion, start at Mem Location 0
-    //CHECK START ADD
-    ADC->CTL1 = ADC14CSTARTADD | ADC14_CTL1_RES_3;
+    ADC14->CTL1 = ADC14_CTL1_CSTARTADD_OFS | ADC14_CTL1_RES_3;
 
     // Mem location 0, VRef  setup, A0
     ADC14->MCTL[0] = ADC14_MCTLN_VRSEL_14 | ADC14_MCTLN_INCH_14;
 
-//    ADC14->IER0 = ADC14IE0_1; // CHECK
+//    ADC14->IER0 = ADC14IE1; // CHECK to enable interrupt
 
     ADC14->CTL0 = ADC14_CTL0_ENC; // enable ADC14
 
@@ -44,7 +43,9 @@ void main(void)
 
     while(1){
         ADC14->CTL0 |= ADC14_CTL0_SC;
-        delay_us(1000);
+        while (!(ADC14->IFGR0 & BIT0));
+        ADCvar = ADC14->MEM[0];
+        delay_us(1000); // Set a breakpoint!!
     }
 
 /*
