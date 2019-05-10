@@ -20,36 +20,37 @@ void main(void)
 	CS->KEY = 0;			//lock CS registers
 
 	P5->SEL0 |= BIT5 | BIT6 | BIT7; // Enable A/D channel
-    P5->SEL1 |= BIT5 | BIT6 | BIT7; // Enable VeREF+ and VeREF-
+    	P5->SEL1 |= BIT5 | BIT6 | BIT7; // Enable VeREF+ and VeREF-
 
-    ADC14->CTL0 &= ~ADC14_CTL0_ENC; // Disable ADC14
+    	ADC14->CTL0 &= ~ADC14_CTL0_ENC; // Disable ADC14
 
-    // Configure ADC14, set sampling time
-    ADC14->CTL0 = ADC14_CTL0_ON
-                | ADC14_CTL0_SSEL_5
-                | ADC14_CTL0_SHP
-                | ADC14_CTL0_SHT0_0;
+    	// Configure ADC14, set sampling time
+    	ADC14->CTL0 = ADC14_CTL0_ON		//turn on ADC
+        	        | ADC14_CTL0_SSEL_5	//select HSMCLK
+                	| ADC14_CTL0_SHP	//sample pulse mode
+                	| ADC14_CTL0_SHT0_0;	//select 4 clock cycles
 
-    // Use 14-bit conversion, start at Mem Location 0
-    ADC14->CTL1 = ADC14_CTL1_CSTARTADD_OFS | ADC14_CTL1_RES_3;
+    	// Use 14-bit conversion, start at Mem Location 0
+    	ADC14->CTL1 = ADC14_CTL1_CSTARTADD_OFS | ADC14_CTL1_RES_3;
 
-    // Mem location 0, VRef  setup, A0
-    ADC14->MCTL[0] = ADC14_MCTLN_VRSEL_14 | ADC14_MCTLN_INCH_14;
+    	// Mem location 0, VRef  setup, A0
+    	ADC14->MCTL[0] = ADC14_MCTLN_VRSEL_14 | ADC14_MCTLN_INCH_14;
 
-//    ADC14->IER0 = ADC14IE1; // CHECK to enable interrupt
+	//    ADC14->IER0 = ADC14IE1; // CHECK to enable interrupt
 
-    ADC14->CTL0 = ADC14_CTL0_ENC; // enable ADC14
+    	ADC14->CTL0 = ADC14_CTL0_ENC; // enable ADC14
 
-//    ADC14->IER0 = (1<<ADC14_IRQn & 31); // enable interrupt in NVIC
+	//    ADC14->IER0 = (1<<ADC14_IRQn & 31); // enable interrupt in NVIC
 
-//    __enable_irq();
+	//    __enable_irq();
 
-    while(1){
-        ADC14->CTL0 |= ADC14_CTL0_SC;
-        while (!(ADC14->IFGR0 & BIT0));
-        ADCvar = ADC14->MEM[0];
-        delay_us(1000); // Set a breakpoint!!
-    }
+    	while(1)
+	{
+        	ADC14->CTL0 |= ADC14_CTL0_SC;
+        	while (!(ADC14->IFGR0 & BIT0));
+        	ADCvar = ADC14->MEM[0];
+        	delay_us(1000); // Set a breakpoint!!
+    	}
 
 /*
     void ADC_14IRQ_Handler(void){
