@@ -17,7 +17,7 @@ void main(void)
 	// Set HSMCLK
 	CS->KEY = CS_KEY_VAL; 		// unlock CS registers
 	CS->CTL1 |= CS_CTL1_SELS_3;	//set HSMCLK to DCO
-	CS->KEY = 0;					//lock CS registers
+	CS->KEY = 0;			//lock CS registers
 
 	P5->SEL0 |= BIT5 | BIT6 | BIT7; // Enable A/D channel
     P5->SEL1 |= BIT5 | BIT6 | BIT7; // Enable VeREF+ and VeREF-
