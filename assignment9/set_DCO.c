@@ -1,9 +1,10 @@
 /*
  * set_DCO.c
  *
- *  Created on: Apr 22, 2019
- *      Author: Amanda & Daniel
+ *  Created on: Apr 9, 2019
+ *      Author: Amanda
  */
+
 #include "set_DCO.h"
 #include <msp432p401r.h>
 #include <msp.h>
@@ -82,4 +83,10 @@ void set_DCO(int frequency)
         CS_CTL1_SELM_3;
         CS->KEY = 0; // Lock CS module from unintended accesses
     }
+
 }
+
+
+
+
+

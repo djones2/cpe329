@@ -1,10 +1,9 @@
 /*
  * delay.h
  *
- *  Created on: Apr 22, 2019
- *      Author: Amanda & Daniel
+ *  Created on: Apr 9, 2019
+ *      Author: Amanda
  */
-
 #include <stdint.h>
 
 #ifndef DELAY_H_
