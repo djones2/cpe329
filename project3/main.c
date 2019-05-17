@@ -532,7 +532,7 @@ void to_terminal(int msg){
 // This function will TIMER32 to collect the times at which "high" voltage values are registered
 // It then uses them to calculate the frequency
 // Use Timer_A/32 to collect time that voltages change from high to low (frequency)
-//
+// A State Machine could be used here to decide AC versus DC!
 //
 void get_in_freq(){
 
