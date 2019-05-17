@@ -8,8 +8,8 @@ volatile unsigned int FastToggle_Period = 1000-1;
 /*
  * Here are a bunch of global variables that I think could be useful! One
  * of the tough things will be converting a lot of floats to points, see Assignment
- * 9 to see how I did that.
- *
+ * 9 to see how I did that. There is a lot of swapping that will be needed to compare incoming
+ * samples and plently of counters, hopefully this can provide a framework to get started!
  *
  */
 
