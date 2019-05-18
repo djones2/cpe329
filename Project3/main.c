@@ -40,11 +40,11 @@ void printStr(char* str)
     }
 }
 
-char* convertDecToAscii(int value)
+void convertDecToAscii(int value)
 {
     char str[8];
-    str[7] = '\0';
     int num = 100 * value; //to get rid of the decimals
+
     str[0] = (num / 100000) + '0';    //set the 1000's place
     str[1] = (num / 10000) % 10 + '0';     //set the 100's place
     str[2] = (num / 1000) % 10 + '0';      //set the 10's place
@@ -52,8 +52,9 @@ char* convertDecToAscii(int value)
     str[4] = '.';
     str[5] = (num / 10) % 10 + '0';       //set the 0.1's place
     str[6] = (num % 10) + '0';       //set the 0.01's place
+    str[7] = '\0';
 
-    return str;
+    printStr(str);
 }
 
 void initUART(void)
@@ -109,17 +110,13 @@ void EUSCIA0_IRQHandler(void)
 
 
 void TA0_0_IRQHandler(void){
-
-    char* str;
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
 
     if (countTimer == 2)
     {
         data.freq = countEdges;
 
-        str = convertDecToAscii(data.freq);
-        printStr("Hello");
-        printStr(str);
+        convertDecToAscii(data.freq);
 
         countEdges = 0;
         countTimer = 0;
