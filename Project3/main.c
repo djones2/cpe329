@@ -6,6 +6,37 @@
  * main.c
  */
 
+enum State {DC = 0, AC = 1};
+
+typedef struct Measurements
+{
+    char state;
+
+
+}Measurements;
+
+
+Measurements data;
+
+void printChar(char letter)
+{
+    EUSCI_A0->TXBUF = letter;   // transmit character
+
+    // echo user input
+    while(!(EUSCI_A0->IFG & EUSCI_A_IFG_TXIFG));    //wait for TX buffer to empty
+}
+
+void printStr(char* str)
+{
+    int i = 0;
+
+    while (str[i] != '\0')
+    {
+        printChar(str[i]);
+        i++;
+    }
+}
+
 void initUART(void)
 {
     EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SWRST; //get into reset state
@@ -43,10 +74,17 @@ void EUSCIA0_IRQHandler(void)
         // get user input
         letter = EUSCI_A0->RXBUF;   //receive character
 
-        EUSCI_A0->TXBUF = letter;   // transmit character
+        //update if state is AC or DC
+        if (letter == 'a')
+        {
+            data.state = AC;
+        }
+        else if (letter == 'd')
+        {
+            data.state = DC;
+        }
 
-        // echo user input
-        while(!(EUSCI_A0->IFG & EUSCI_A_IFG_TXIFG));    //wait for TX buffer to empty
+        printChar(letter);
     }
 }
 
@@ -66,6 +104,8 @@ void main(void)
 
     __enable_irq(); //enable global interrupts
 
+    printStr("Freq:");
+    printStr("Period:");
     while(1)
     {
     }
