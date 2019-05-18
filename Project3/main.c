@@ -6,7 +6,7 @@
  * main.c
  */
 
-void initUART()
+void initUART(void)
 {
     EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SWRST; //get into reset state
 
@@ -16,10 +16,11 @@ void initUART()
             | EUSCI_A_CTLW0_UCSSEL_2 //SMCLK
             | EUSCI_A_CTLW0_SWRST; //keep in reset
 
-    EUSCI_A0->BRW = 0x01; // UCBRx calculation
+    EUSCI_A0->BRW = 0x1A; // UCBRx calculation
 
-    EUSCI_A0->MCTLW = (10<<EUSCI_A_MCTLW_BRF_OFS)
-                | EUSCI_A_MCTLW_OS16; //0S16 = 1
+    EUSCI_A0->MCTLW = (1 << EUSCI_A_MCTLW_BRS_OFS)  //set UCSRx to 1
+                | (1 << EUSCI_A_MCTLW_BRF_OFS) //set UCBRFx to 1
+                | EUSCI_A_MCTLW_OS16; //set 0S16 = 1
 
     P1->SEL0 |= (BIT2|BIT3); //select EUSCI_A0
     P1->SEL1 &= ~(BIT2|BIT3);
@@ -28,7 +29,25 @@ void initUART()
 
     EUSCI_A0->IE |= EUSCI_A_IE_RXIE; //enable USCI_A0 RX interrupts
 
-    NVIC->ISER[0] = 1<<(EUSCIA0_IRQn & 31);
+    NVIC->ISER[0] |= 1 <<(EUSCIA0_IRQn & 31);
+}
+
+void EUSCIA0_IRQHandler(void)
+{
+    char letter;
+
+    if (EUSCI_A0->IFG & EUSCI_A_IFG_RXIFG)
+    {
+        EUSCI_A0->IFG &= ~EUSCI_A_IFG_RXIFG;    //clear the interrupt flag
+
+        // get user input
+        letter = EUSCI_A0->RXBUF;   //receive character
+
+        EUSCI_A0->TXBUF = letter;   // transmit character
+
+        // echo user input
+        while(!(EUSCI_A0->IFG & EUSCI_A_IFG_TXIFG));    //wait for TX buffer to empty
+    }
 }
 
 void main(void)
@@ -47,19 +66,7 @@ void main(void)
 
     __enable_irq(); //enable global interrupts
 
-}
-
-void EUSCIA0_IRQHandler(void)
-{
-    char letter;
-
-    if (EUSCI_A0->IFG & EUSCI_A_IFG_RXIFG)
+    while(1)
     {
-        // get user input
-        letter = EUSCI_A0->RXBUF;   //receive character
-
-        // echo user input
-        while(!(EUSCI_A0->IFG & EUSCI_A_IFG_TXIFG));    //wait for TX buffer to empty
-        EUSCI_A0->TXBUF = letter;   // transmit character
     }
 }
