@@ -43,7 +43,7 @@ void printStr(char* str)
 char* convertDecToAscii(int value)
 {
     char str[8];
-    str[7] = '/0';
+    str[7] = '\0';
     int num = 100 * value; //to get rid of the decimals
     str[0] = (num / 100000) + '0';    //set the 1000's place
     str[1] = (num / 10000) % 10 + '0';     //set the 100's place
@@ -118,7 +118,8 @@ void TA0_0_IRQHandler(void){
         data.freq = countEdges;
 
         str = convertDecToAscii(data.freq);
-        printStr(str + '\n');
+        printStr("Hello");
+        printStr(str);
 
         countEdges = 0;
         countTimer = 0;
@@ -131,8 +132,11 @@ void TA0_0_IRQHandler(void){
 
 void TA1_N_IRQHandler(void){
 
-    TIMER_A1->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
-    countEdges++;
+    if (TIMER_A1->CCTL[2] & TIMER_A_CCTLN_CCIFG)
+    {
+        TIMER_A1->CCTL[2] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
+        countEdges++;
+    }
 }
 
 void main(void)
@@ -145,9 +149,9 @@ void main(void)
 	CS->KEY = CS_KEY_VAL; // unlock CS registers
 	CS->CTL1 |= CS_CTL1_DIVS_0 //set SELS to select DCO source for SMCLK
 	            | CS_CTL1_SELS_3   //set DIVS to divide by 1
-	            | CS_CTL1_SELA__REFOCLK;     //sets the ACLK source to REFO
+	            | CS_CTL1_SELS__REFOCLK;     //sets the ACLK source to REFO
 
-	CS->CLKEN = CS_CLKEN_REFOFSEL;               //sets REFO to 128kHz
+	CS->CLKEN |= CS_CLKEN_REFOFSEL;               //sets REFO to 128kHz
 	CS->KEY = 0; // lock the CS registers
 
 	initUART();
@@ -168,13 +172,17 @@ void main(void)
      TIMER_A1->CTL |= TIMER_A_CTL_TASSEL_1; // Use ACLK in up mode
 
      TIMER_A1->CCTL[2] |= TIMER_A_CCTLN_CM_1  //set to capture on rising edge
-                         | TIMER_A_CCTLN_CCIS_0    //set input signal to CCIxA
+                         | TIMER_A_CCTLN_CCIS__CCIA      //set input signal to CCIxA
                          | TIMER_A_CCTLN_CAP  //set to capture mode
                          | TIMER_A_CCTLN_CCIE; //enable interrupt
 
      NVIC->ISER[0] = 1 << (TA1_N_IRQn & 31);      // Enable CCR0 ISR
 
      __enable_irq(); //enable global interrupts
+
+     P7->SEL0 |= BIT6;          //set for capture compare mode
+     P7->SEL1 &= ~BIT6;
+     P7->DIR &= ~BIT6;          //set to function TA1.CCI2A
 
     while(1)
     {
