@@ -114,12 +114,12 @@ void EUSCIA0_IRQHandler(void)
 void TA0_0_IRQHandler(void){
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
 
-    if (countTimer == 50)
+    if (countTimer == 50)   //time is 1 sec
     {
         P3->IE &= ~BIT0; //disable interrupting for rising edges
+        freq = countEdges;
         max = 0;
         min = 16383;
-        freq = countEdges;
         countEdges = 0;
         countTimer = 0;
         TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts
@@ -127,7 +127,7 @@ void TA0_0_IRQHandler(void){
     else
     {
         countTimer++;
-        P3->IE |= BIT0; //enable interrupting for rising edges
+        P3->IE |= BIT0;
     }
 }
 
@@ -142,7 +142,7 @@ void TA0_N_IRQHandler(void){
 void PORT3_IRQHandler()
 {
     P3->IFG &= ~BIT0; //clear flag
-    countEdges ++;
+    countEdges++;
 }
 
 void ADC14_IRQHandler()
@@ -163,6 +163,7 @@ void ADC14_IRQHandler()
 void sampleData()
 {
     int fr;
+    ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
     fr = 50 * freq;
     fr = 3000000/fr;
     TIMER_A0->CCR[1] = fr;
@@ -193,7 +194,7 @@ void main(void)
     TIMER_A0->CTL |= (TIMER_A_CTL_TASSEL_2|TIMER_A_CTL_MC_1 | TIMER_A_CTL_ID_3); // Use SMCLK in up mode and divide by 8
     TIMER_A0->EX0 |= TIMER_A_EX0_TAIDEX_1; //clock divide by 2 --> TIMER A0 runs on 3 MHz clock
 
-     TIMER_A0->CCR[0] = 59130;      // Period = 1 sec
+     TIMER_A0->CCR[0] = 60250; //59130;      // Period = 1 sec
      TIMER_A0->CCR[1] = 1000; // Fix value in sampleData() function
 
      TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;      // Enable interrupts on TIMER_A0
@@ -230,8 +231,6 @@ void main(void)
 
     while(1)
     {
-        delay_us(100000);
-        __disable_irq();
         printStr("Freq: ", 6);
         convertDecToAscii((float)freq);
 
@@ -245,6 +244,5 @@ void main(void)
         convertedPk = (max - min)/4948.0;
         convertDecToAscii(convertedPk);
 
-        __enable_irq();
     }
 }
