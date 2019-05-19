@@ -55,6 +55,8 @@ void convertDecToAscii(int value)
     str[7] = '\0';
 
     printStr(str);
+    printChar('\n');            //creates a new line
+    printChar('\r');            //acts like enter
 }
 
 void initUART(void)
@@ -112,7 +114,7 @@ void EUSCIA0_IRQHandler(void)
 void TA0_0_IRQHandler(void){
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
 
-    if (countTimer == 2)
+    if (countTimer == 50)
     {
         data.freq = countEdges;
 
@@ -127,59 +129,48 @@ void TA0_0_IRQHandler(void){
     }
 }
 
-void TA1_N_IRQHandler(void){
-
-    if (TIMER_A1->CCTL[2] & TIMER_A_CCTLN_CCIFG)
-    {
-        TIMER_A1->CCTL[2] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
-        countEdges++;
-    }
+void PORT3_IRQHandler()
+{
+    P3->IFG &= ~BIT0; //clear flag
+    countEdges ++;
 }
+
 
 void main(void)
 {
-	WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;		// stop watchdog timer
+    WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
 
-	set_DCO(FREQ_48_MHz);                            //set DCO to 48 MHz
+    set_DCO(FREQ_48_MHz);                            //set DCO to 48 MHz
 
-	// set SMCLK to 48MHz and set ACLK to 128kHz
-	CS->KEY = CS_KEY_VAL; // unlock CS registers
-	CS->CTL1 |= CS_CTL1_DIVS_0 //set SELS to select DCO source for SMCLK
-	            | CS_CTL1_SELS_3   //set DIVS to divide by 1
-	            | CS_CTL1_SELS__REFOCLK;     //sets the ACLK source to REFO
+    // set SMCLK to 48MHz and set ACLK to 128kHz
+    CS->KEY = CS_KEY_VAL; // unlock CS registers
+    CS->CTL1 |= CS_CTL1_DIVS_0 //set SELS to select DCO source for SMCLK
+                | CS_CTL1_SELS_3   //set DIVS to divide by 1
+                | CS_CTL1_SELS__REFOCLK;     //sets the ACLK source to REFO
 
-	CS->CLKEN |= CS_CLKEN_REFOFSEL;               //sets REFO to 128kHz
-	CS->KEY = 0; // lock the CS registers
+    CS->CLKEN |= CS_CLKEN_REFOFSEL;               //sets REFO to 128kHz
+    CS->KEY = 0; // lock the CS registers
 
-	initUART();
+    initUART();
 
-	/*Sets the timerA0 to be in up mode*/
-    TIMER_A0->CTL |= (TIMER_A_CTL_TASSEL_1|TIMER_A_CTL_MC_1); // Use ACLK in up mode
+    /*Sets the timerA0 to be in up mode*/
+    TIMER_A0->CTL |= (TIMER_A_CTL_TASSEL_2|TIMER_A_CTL_MC_1 | TIMER_A_CTL_ID_3); // Use SMCLK in up mode and divide by 8
+    TIMER_A0->EX0 |= TIMER_A_EX0_TAIDEX_1; //clock divide by 2 --> TIMER A0 runs on 3 MHz clock
 
-
-     TIMER_A0->CCR[0] = 65535;      // Period = 1 sec
-
+     TIMER_A0->CCR[0] = 60000;      // Period = 1 sec
 
      TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;      // Enable interrupts on TIMER_A0
 
-
      NVIC->ISER[0] = 1 << (TA0_0_IRQn & 31);      // Enable CCR0 ISR
 
-     /*Sets the timerA1 to be capture mode*/
-     TIMER_A1->CTL |= TIMER_A_CTL_TASSEL_1; // Use ACLK in up mode
+     P3->DIR &= ~BIT0; //P3.0 used for taking in waveform from comparator and calculating frequency
+     P3->IES |= BIT0; //set interrupt on high to low transition
+     P3->IFG &= ~BIT0; //clear flag
+     P3->IE |= BIT0; //enable GPIO interrupts
 
-     TIMER_A1->CCTL[2] |= TIMER_A_CCTLN_CM_1  //set to capture on rising edge
-                         | TIMER_A_CCTLN_CCIS__CCIA      //set input signal to CCIxA
-                         | TIMER_A_CCTLN_CAP  //set to capture mode
-                         | TIMER_A_CCTLN_CCIE; //enable interrupt
-
-     NVIC->ISER[0] = 1 << (TA1_N_IRQn & 31);      // Enable CCR0 ISR
+     NVIC->ISER[1] = 1 << (PORT3_IRQn & 31);
 
      __enable_irq(); //enable global interrupts
-
-     P7->SEL0 |= BIT6;          //set for capture compare mode
-     P7->SEL1 &= ~BIT6;
-     P7->DIR &= ~BIT6;          //set to function TA1.CCI2A
 
     while(1)
     {
