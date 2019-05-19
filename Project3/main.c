@@ -117,14 +117,17 @@ void TA0_0_IRQHandler(void){
     if (countTimer == 50)
     {
         P3->IE &= ~BIT0; //disable interrupting for rising edges
+        max = 0;
+        min = 16383;
         freq = countEdges;
         countEdges = 0;
         countTimer = 0;
-        P3->IE |= BIT0; //disable interrupting for rising edges
+        TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts
     }
     else
     {
         countTimer++;
+        P3->IE |= BIT0; //enable interrupting for rising edges
     }
 }
 
@@ -132,8 +135,6 @@ void TA0_N_IRQHandler(void){
     if(TIMER_A0->CCTL[1] & TIMER_A_CCTLN_CCIFG)
     {
         TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
-        max = -1;
-        min = 16383;
         ADC14->CTL0 |= ADC14_CTL0_SC; //start conversion
     }
 }
@@ -148,23 +149,24 @@ void ADC14_IRQHandler()
 {
     volatile uint16_t readValue;
     readValue = ADC14->MEM[0]; //read ADC value (clears interrupt when reading value
+
     if(readValue > max)
+    {
         max = readValue;
+    }
     else if(readValue < min)
+    {
         min = readValue;
+    }
 }
 
 void sampleData()
 {
     int fr;
-    ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
     fr = 50 * freq;
     fr = 3000000/fr;
     TIMER_A0->CCR[1] = fr;
-    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts
     delay_us(2000000); // delay 1 second (max period)
-    dc_voltage = (max + min)/2;
-    pk_pk = (max - min);
 }
 
 void main(void)
@@ -228,17 +230,21 @@ void main(void)
 
     while(1)
     {
+        delay_us(100000);
+        __disable_irq();
         printStr("Freq: ", 6);
         convertDecToAscii((float)freq);
 
         sampleData();
 
         printStr("DC offset: ", 11);
-        convertedDC = dc_voltage/4948;
+        convertedDC = (max + min)/9896.0;
         convertDecToAscii(convertedDC);
 
         printStr("Peak to Peak: ", 14);
-        convertedPk = pk_pk/4948;
+        convertedPk = (max - min)/4948.0;
         convertDecToAscii(convertedPk);
+
+        __enable_irq();
     }
 }
