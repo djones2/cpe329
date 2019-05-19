@@ -23,6 +23,12 @@ typedef struct Measurements
 
 
 Measurements data;
+char state;
+volatile int freq = 0;
+volatile int min;
+volatile int max;
+volatile int dc_voltage;
+volatile int pk_pk;
 int countTimer = 0;
 int countEdges = 0;
 
@@ -64,6 +70,8 @@ void convertDecToAscii(int value)
     str[7] = '\0';
 
     printStr(str, 7);
+    printChar('\n');
+    printChar('\r');
 
 }
 
@@ -107,11 +115,11 @@ void EUSCIA0_IRQHandler(void)
         //update if state is AC or DC
         if (letter == 'a')
         {
-            data.state = AC;
+            state = AC;
         }
         else if (letter == 'd')
         {
-            data.state = DC;
+            state = DC;
         }
 
         printChar(letter);
@@ -124,9 +132,12 @@ void TA0_0_IRQHandler(void){
 
     if (countTimer == 50)
     {
-        data.freq = countEdges;
+        freq = countEdges;
+        P3->IE &= ~BIT0; //disable interrupting for rising edges
+        convertDecToAscii(freq);
         countEdges = 0;
         countTimer = 0;
+        P3->IE |= BIT0; //disable interrupting for rising edges
     }
     else
     {
@@ -137,8 +148,8 @@ void TA0_0_IRQHandler(void){
 void TA0_N_IRQHandler(void){
     if(TIMER_A0->CCTL[1] & TIMER_A_CCTLN_CCIFG)
     {
-        data.max = -1;
-        data.min = 16383;
+        max = -1;
+        min = 16383;
         TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
         ADC14->CTL0 |= ADC14_CTL0_SC; //start conversion
     }
@@ -154,28 +165,28 @@ void ADC14_IRQHandler()
 {
     volatile uint16_t readValue;
     readValue = ADC14->MEM[0]; //read ADC value (clears interrupt when reading value
-    if(readValue > data.max)
-        data.max = readValue;
-    else if(readValue < data.min)
-        data.min = readValue;
+    if(readValue > max)
+        max = readValue;
+    else if(readValue < min)
+        min = readValue;
 }
 
 void sampleData()
 {
-    int freq;
+    int fr;
     ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
-    freq = 50 * data.freq;
-    freq = 3000000/freq;
-    TIMER_A0->CCR[1] = freq;
+    fr = 50 * freq;
+    fr = 3000000/fr;
+    TIMER_A0->CCR[1] = fr;
     TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts
     delay_us(2000000); // delay 1 second (max period)
-    data.dc_voltage = (data.max + data.min)/2;
-    data.pk_pk = (data.max - data.min);
+    dc_voltage = (max + min)/2;
+    pk_pk = (max - min);
 }
 
 void main(void)
 {
-    int freq, vdc, vpk;
+    int fr, vdc, vpk;
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
 
     set_DCO(FREQ_48_MHz);                            //set DCO to 48 MHz
@@ -233,33 +244,33 @@ void main(void)
     while(1)
     {
         //sample
-
-        delay_us(1000000);
-        __disable_irq();
-        freq = data.freq;
-        //vdc = data.dc_voltage;
-        //vpk = data.pk_pk;
-        convertDecToAscii(freq);
+        P3->IE |= BIT0; //enable rising edge interrupts
+        //delay_us(1000000);
+        //__disable_irq();
+        //fr = freq;
+        //vdc =  dc_voltage;
+        //vpk =  pk_pk;
+        //convertDecToAscii(fr);
         //convertDecToAscii(vdc);
         //convertDecToAscii(vpk);
-        printStr("\\[H",3);
+        //printStr("\\[H",3);
         //printStr("\\[5B", 4);
-        printStr("\\[5C", 4);
-        __enable_irq();
+        //printStr("\\[5C", 4);
+        //__enable_irq();
         /*sampleData();
         //print
         printStr("frequency: ");
         printChar('\n');
         printChar('\r');
-        convertDecToAscii(data.freq);
+        convertDecToAscii( freq);
         printStr("DC offset: ");
         printChar('\n');
         printChar('\r');
-        convertDecToAscii(data.dc_voltage);
+        convertDecToAscii( dc_voltage);
         printStr("Peak to Peak: ");
         printChar('\n');
         printChar('\r');
-        convertDecToAscii(data.pk_pk);
+        convertDecToAscii( pk_pk);
         printChar('\n');
         printChar('\r');*/
         //printStr("abc");
