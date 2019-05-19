@@ -245,5 +245,6 @@ void main(void)
         convertedPk = (max - min)/4948.0;
         convertDecToAscii(convertedPk);
 
+        TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE;      //start process over
     }
 }
