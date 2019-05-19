@@ -10,19 +10,6 @@
 
 enum State {DC = 0, AC = 1};
 
-typedef struct Measurements
-{
-    char state;
-    int freq;
-    int max;
-    int min;
-    int dc_voltage;
-    int pk_pk;
-
-}Measurements;
-
-
-Measurements data;
 char state;
 volatile int freq = 0;
 volatile int min;
@@ -38,8 +25,6 @@ void printChar(char letter)
     while(!(EUSCI_A0->IFG & EUSCI_A_IFG_TXIFG));    //wait for TX buffer to empty
 
     EUSCI_A0->TXBUF = letter;   // transmit character
-
-
 }
 
 void printStr(char* str, int length)
@@ -55,7 +40,7 @@ void printStr(char* str, int length)
     }
 }
 
-void convertDecToAscii(int value)
+void convertDecToAscii(float value)
 {
     char str[8];
     int num = 100 * value; //to get rid of the decimals
@@ -72,7 +57,6 @@ void convertDecToAscii(int value)
     printStr(str, 7);
     printChar('\n');
     printChar('\r');
-
 }
 
 void initUART(void)
@@ -132,9 +116,8 @@ void TA0_0_IRQHandler(void){
 
     if (countTimer == 50)
     {
-        freq = countEdges;
         P3->IE &= ~BIT0; //disable interrupting for rising edges
-        convertDecToAscii(freq);
+        freq = countEdges;
         countEdges = 0;
         countTimer = 0;
         P3->IE |= BIT0; //disable interrupting for rising edges
@@ -148,9 +131,9 @@ void TA0_0_IRQHandler(void){
 void TA0_N_IRQHandler(void){
     if(TIMER_A0->CCTL[1] & TIMER_A_CCTLN_CCIFG)
     {
+        TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
         max = -1;
         min = 16383;
-        TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
         ADC14->CTL0 |= ADC14_CTL0_SC; //start conversion
     }
 }
@@ -186,7 +169,9 @@ void sampleData()
 
 void main(void)
 {
-    int fr, vdc, vpk;
+    float convertedDC = 0;
+    float convertedPk = 0;
+
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
 
     set_DCO(FREQ_48_MHz);                            //set DCO to 48 MHz
@@ -243,39 +228,17 @@ void main(void)
 
     while(1)
     {
-        //sample
-        P3->IE |= BIT0; //enable rising edge interrupts
-        //delay_us(1000000);
-        //__disable_irq();
-        //fr = freq;
-        //vdc =  dc_voltage;
-        //vpk =  pk_pk;
-        //convertDecToAscii(fr);
-        //convertDecToAscii(vdc);
-        //convertDecToAscii(vpk);
-        //printStr("\\[H",3);
-        //printStr("\\[5B", 4);
-        //printStr("\\[5C", 4);
-        //__enable_irq();
-        /*sampleData();
-        //print
-        printStr("frequency: ");
-        printChar('\n');
-        printChar('\r');
-        convertDecToAscii( freq);
-        printStr("DC offset: ");
-        printChar('\n');
-        printChar('\r');
-        convertDecToAscii( dc_voltage);
-        printStr("Peak to Peak: ");
-        printChar('\n');
-        printChar('\r');
-        convertDecToAscii( pk_pk);
-        printChar('\n');
-        printChar('\r');*/
-        //printStr("abc");
-        //printChar('a');
-        //printChar('b');
-        //printChar('\n');
+        printStr("Freq: ", 6);
+        convertDecToAscii((float)freq);
+
+        sampleData();
+
+        printStr("DC offset: ", 11);
+        convertedDC = dc_voltage/4948;
+        convertDecToAscii(convertedDC);
+
+        printStr("Peak to Peak: ", 14);
+        convertedPk = pk_pk/4948;
+        convertDecToAscii(convertedPk);
     }
 }
