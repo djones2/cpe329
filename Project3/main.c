@@ -155,7 +155,7 @@ void main(void)
     TIMER_A0->CTL |= (TIMER_A_CTL_TASSEL_2|TIMER_A_CTL_MC_1 | TIMER_A_CTL_ID_3); // Use SMCLK in up mode and divide by 8
     TIMER_A0->EX0 |= TIMER_A_EX0_TAIDEX_1; //clock divide by 2 --> TIMER A0 runs on 3 MHz clock
 
-     TIMER_A0->CCR[0] = 59130; //59500     // Period = 1 sec
+     TIMER_A0->CCR[0] = 59130;      // Period = 1 sec
 
      TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;      // Enable interrupts on TIMER_A0
 
