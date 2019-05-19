@@ -2,6 +2,8 @@
 #include "msp.h"
 #include "set_DCO.h"
 #include <stdint.h>
+#include <string.h>
+#include "delay.h"
 /**
  * main.c
  */
@@ -12,7 +14,10 @@ typedef struct Measurements
 {
     char state;
     int freq;
-
+    int max;
+    int min;
+    int dc_voltage;
+    int pk_pk;
 
 }Measurements;
 
@@ -23,20 +28,24 @@ int countEdges = 0;
 
 void printChar(char letter)
 {
-    EUSCI_A0->TXBUF = letter;   // transmit character
-
     // echo user input
     while(!(EUSCI_A0->IFG & EUSCI_A_IFG_TXIFG));    //wait for TX buffer to empty
+
+    EUSCI_A0->TXBUF = letter;   // transmit character
+
+
 }
 
-void printStr(char* str)
+void printStr(char* str, int length)
 {
     int i = 0;
 
-    while (str[i] != '\0')
+    for(i=0; i<length; i++)
     {
-        printChar(str[i]);
-        i++;
+        if(str[i] == '\\')
+            printChar(27);
+        else
+            printChar(str[i]);
     }
 }
 
@@ -54,9 +63,8 @@ void convertDecToAscii(int value)
     str[6] = (num % 10) + '0';       //set the 0.01's place
     str[7] = '\0';
 
-    printStr(str);
-    printChar('\n');            //creates a new line
-    printChar('\r');            //acts like enter
+    printStr(str, 7);
+
 }
 
 void initUART(void)
@@ -116,7 +124,6 @@ void TA0_0_IRQHandler(void){
 
     if (countTimer == 50)
     {
-        P3->IE &= ~BIT0; //enable GPIO interrupts
         data.freq = countEdges;
         countEdges = 0;
         countTimer = 0;
@@ -127,15 +134,48 @@ void TA0_0_IRQHandler(void){
     }
 }
 
+void TA0_N_IRQHandler(void){
+    if(TIMER_A0->CCTL[1] & TIMER_A_CCTLN_CCIFG)
+    {
+        data.max = -1;
+        data.min = 16383;
+        TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
+        ADC14->CTL0 |= ADC14_CTL0_SC; //start conversion
+    }
+}
+
 void PORT3_IRQHandler()
 {
     P3->IFG &= ~BIT0; //clear flag
     countEdges ++;
 }
 
+void ADC14_IRQHandler()
+{
+    volatile uint16_t readValue;
+    readValue = ADC14->MEM[0]; //read ADC value (clears interrupt when reading value
+    if(readValue > data.max)
+        data.max = readValue;
+    else if(readValue < data.min)
+        data.min = readValue;
+}
+
+void sampleData()
+{
+    int freq;
+    ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
+    freq = 50 * data.freq;
+    freq = 3000000/freq;
+    TIMER_A0->CCR[1] = freq;
+    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts
+    delay_us(2000000); // delay 1 second (max period)
+    data.dc_voltage = (data.max + data.min)/2;
+    data.pk_pk = (data.max - data.min);
+}
 
 void main(void)
 {
+    int freq, vdc, vpk;
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
 
     set_DCO(FREQ_48_MHz);                            //set DCO to 48 MHz
@@ -156,10 +196,14 @@ void main(void)
     TIMER_A0->EX0 |= TIMER_A_EX0_TAIDEX_1; //clock divide by 2 --> TIMER A0 runs on 3 MHz clock
 
      TIMER_A0->CCR[0] = 59130;      // Period = 1 sec
+     TIMER_A0->CCR[1] = 1000; // Fix value in sampleData() function
 
      TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;      // Enable interrupts on TIMER_A0
+     //TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts
 
      NVIC->ISER[0] = 1 << (TA0_0_IRQn & 31);      // Enable CCR0 ISR
+     NVIC->ISER[0] = 1 << (TA0_N_IRQn & 31);      // Enable CCR1 ISR
+
 
      P3->DIR &= ~BIT0; //P3.0 used for taking in waveform from comparator and calculating frequency
      P3->IES |= BIT0; //set interrupt on high to low transition
@@ -168,14 +212,59 @@ void main(void)
 
      NVIC->ISER[1] = 1 << (PORT3_IRQn & 31);
 
+     P5->SEL1 |= BIT4 | BIT5;                // Configure P5.4/5 for ADC
+     P5->SEL0 |= BIT4 | BIT5;
+
+     //configure ADC
+     ADC14->CTL0 &= ~ADC14_CTL0_ENC; //disables ADC for configuration
+     ADC14->CTL0 = ADC14_CTL0_SHP //sample pulse mode and use internal sample timer
+             | ADC14_CTL0_SSEL_4 //SMCLK
+             | ADC14_CTL0_SHT0_0 //sample 4 clocks
+             | ADC14_CTL0_ON; // turn on ADC14
+     ADC14->CTL1 = (0 << ADC14_CTL1_CSTARTADD_OFS) //start at mem address 0
+             | ADC14_CTL1_RES_3; //14 bit resolution
+     ADC14->MCTL[0] = ADC14_MCTLN_INCH_14; //select channel 14
+     ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
+     ADC14->CTL0 |= ADC14_CTL0_ENC; //enable ADC14
+     NVIC->ISER[0] = 1 << (ADC14_IRQn & 31);
+
      __enable_irq(); //enable global interrupts
 
     while(1)
     {
         //sample
-        P3->IE |= BIT0; //enable GPIO interrupts
-        //print
-        convertDecToAscii(data.freq);
 
+        delay_us(1000000);
+        __disable_irq();
+        freq = data.freq;
+        //vdc = data.dc_voltage;
+        //vpk = data.pk_pk;
+        convertDecToAscii(freq);
+        //convertDecToAscii(vdc);
+        //convertDecToAscii(vpk);
+        printStr("\\[H",3);
+        //printStr("\\[5B", 4);
+        printStr("\\[5C", 4);
+        __enable_irq();
+        /*sampleData();
+        //print
+        printStr("frequency: ");
+        printChar('\n');
+        printChar('\r');
+        convertDecToAscii(data.freq);
+        printStr("DC offset: ");
+        printChar('\n');
+        printChar('\r');
+        convertDecToAscii(data.dc_voltage);
+        printStr("Peak to Peak: ");
+        printChar('\n');
+        printChar('\r');
+        convertDecToAscii(data.pk_pk);
+        printChar('\n');
+        printChar('\r');*/
+        //printStr("abc");
+        //printChar('a');
+        //printChar('b');
+        //printChar('\n');
     }
 }
