@@ -122,7 +122,8 @@ void TA0_0_IRQHandler(void){
         min = 16383;
         countEdges = 0;
         countTimer = 0;
-        TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts
+        TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts for ADC conversions
+        TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;      //disable interrupts for the freq calculations
     }
     else
     {
@@ -211,8 +212,8 @@ void main(void)
 
      NVIC->ISER[1] = 1 << (PORT3_IRQn & 31);
 
-     P5->SEL1 |= BIT4 | BIT5;                // Configure P5.4/5 for ADC
-     P5->SEL0 |= BIT4 | BIT5;
+     P6->SEL0 |= BIT1;
+     P6->SEL1 |= BIT1; //use P6.1 for ADC input
 
      //configure ADC
      ADC14->CTL0 &= ~ADC14_CTL0_ENC; //disables ADC for configuration
