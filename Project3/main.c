@@ -8,9 +8,11 @@
  * main.c
  */
 
+#define NUM_SAMPLES 50
 enum State {DC = 0, AC = 1};
 
 char state;
+volatile float vrms;
 volatile int freq = 0;
 volatile int min;
 volatile int max;
@@ -18,6 +20,11 @@ volatile int dc_voltage;
 volatile int pk_pk;
 int countTimer = 0;
 int countEdges = 0;
+
+float calibrateVoltage(int adc)
+{
+    return adc/4948.0;
+}
 
 void printChar(char letter)
 {
@@ -114,10 +121,11 @@ void EUSCIA0_IRQHandler(void)
 void TA0_0_IRQHandler(void){
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
 
-    if (countTimer == 50)   //time is 1 sec
+    if (countTimer == NUM_SAMPLES)   //time is 1 sec
     {
         P3->IE &= ~BIT0; //disable interrupting for rising edges
         freq = countEdges;
+        vrms = 0;
         max = 0;
         min = 16383;
         countEdges = 0;
@@ -151,6 +159,8 @@ void ADC14_IRQHandler()
     volatile uint16_t readValue;
     readValue = ADC14->MEM[0]; //read ADC value (clears interrupt when reading value
 
+    vrms += calibrateVoltage(readValue)*calibrateVoltage(readValue);
+
     if(readValue > max)
     {
         max = readValue;
@@ -165,7 +175,7 @@ void sampleData()
 {
     int fr;
     ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
-    fr = 50 * freq;
+    fr = NUM_SAMPLES * freq;
     fr = 3000000/fr;
     TIMER_A0->CCR[1] = fr;
     delay_us(2000000); // delay 1 second (max period)
@@ -238,12 +248,16 @@ void main(void)
         sampleData();
 
         printStr("DC offset: ", 11);
-        convertedDC = (max + min)/9896.0;
+        convertedDC = calibrateVoltage((max + min)/2);
         convertDecToAscii(convertedDC);
 
         printStr("Peak to Peak: ", 14);
-        convertedPk = (max - min)/4948.0;
+        convertedPk = calibrateVoltage(max - min);
         convertDecToAscii(convertedPk);
+
+        printStr("Vrms: ", 6);
+        vrms = sqrt(vrms/NUM_SAMPLES);
+        convertDecToAscii(vrms);
 
         TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE;      //start process over
     }
