@@ -123,6 +123,7 @@ void TA0_0_IRQHandler(void){
 
     if (countTimer == NUM_SAMPLES)   //time is 1 sec
     {
+        TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;      //disable interrupts for the freq calculations
         P3->IE &= ~BIT0; //disable interrupting for rising edges
         freq = countEdges;
         vrms = 0;
@@ -130,8 +131,9 @@ void TA0_0_IRQHandler(void){
         min = 16383;
         countEdges = 0;
         countTimer = 0;
-        TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts for ADC conversions
-        TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;      //disable interrupts for the freq calculations
+        //TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts for ADC conversions
+        //TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;      //disable interrupts for the freq calculations
+        //delay_us(4000);
     }
     else
     {
@@ -174,10 +176,12 @@ void ADC14_IRQHandler()
 void sampleData()
 {
     int fr;
+    //TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;      //disable interrupts for the freq calculations
     ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
     fr = NUM_SAMPLES * freq;
     fr = 3000000/fr;
     TIMER_A0->CCR[1] = fr;
+    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts for ADC conversions
     delay_us(2000000); // delay 1 second (max period)
 }
 
@@ -205,7 +209,7 @@ void main(void)
     TIMER_A0->CTL |= (TIMER_A_CTL_TASSEL_2|TIMER_A_CTL_MC_1 | TIMER_A_CTL_ID_3); // Use SMCLK in up mode and divide by 8
     TIMER_A0->EX0 |= TIMER_A_EX0_TAIDEX_1; //clock divide by 2 --> TIMER A0 runs on 3 MHz clock
 
-     TIMER_A0->CCR[0] = 60250; //59130;      // Period = 1 sec
+     TIMER_A0->CCR[0] = 59130;      // Period = 1 sec
      TIMER_A0->CCR[1] = 1000; // Fix value in sampleData() function
 
      TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;      // Enable interrupts on TIMER_A0
@@ -242,11 +246,12 @@ void main(void)
 
     while(1)
     {
-        printStr("Freq: ", 6);
-        convertDecToAscii((float)freq);
+
 
         sampleData();
-
+        //__disable_irq();
+        printStr("Freq: ", 6);
+        convertDecToAscii((float)freq);
         printStr("DC offset: ", 11);
         convertedDC = calibrateVoltage((max + min)/2);
         convertDecToAscii(convertedDC);
@@ -259,6 +264,8 @@ void main(void)
         vrms = sqrt(vrms/NUM_SAMPLES);
         convertDecToAscii(vrms);
 
-        TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE;      //start process over
+        //TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE;      //start process over
+        P3->IE |= BIT0;
+        //__enable_irq();
     }
 }
