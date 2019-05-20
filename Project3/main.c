@@ -131,9 +131,6 @@ void TA0_0_IRQHandler(void){
         min = 16383;
         countEdges = 0;
         countTimer = 0;
-        //TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts for ADC conversions
-        //TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;      //disable interrupts for the freq calculations
-        //delay_us(4000);
     }
     else
     {
@@ -176,7 +173,6 @@ void ADC14_IRQHandler()
 void sampleData()
 {
     int fr;
-    //TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;      //disable interrupts for the freq calculations
     ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
     fr = NUM_SAMPLES * freq;
     fr = 3000000/fr;
@@ -194,7 +190,6 @@ void main(void)
 
     set_DCO(FREQ_48_MHz);                            //set DCO to 48 MHz
 
-    // set SMCLK to 48MHz and set ACLK to 128kHz
     CS->KEY = CS_KEY_VAL; // unlock CS registers
     CS->CTL1 |= CS_CTL1_DIVS_0 //set SELS to select DCO source for SMCLK
                 | CS_CTL1_SELS_3   //set DIVS to divide by 1
@@ -213,7 +208,6 @@ void main(void)
      TIMER_A0->CCR[1] = 1000; // Fix value in sampleData() function
 
      TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;      // Enable interrupts on TIMER_A0
-     //TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE;      // Enable interrupts
 
      NVIC->ISER[0] = 1 << (TA0_0_IRQn & 31);      // Enable CCR0 ISR
      NVIC->ISER[0] = 1 << (TA0_N_IRQn & 31);      // Enable CCR1 ISR
@@ -249,9 +243,10 @@ void main(void)
 
 
         sampleData();
-        //__disable_irq();
+
         printStr("Freq: ", 6);
         convertDecToAscii((float)freq);
+
         printStr("DC offset: ", 11);
         convertedDC = calibrateVoltage((max + min)/2);
         convertDecToAscii(convertedDC);
@@ -264,8 +259,6 @@ void main(void)
         vrms = sqrt(vrms/NUM_SAMPLES);
         convertDecToAscii(vrms);
 
-        //TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE;      //start process over
         P3->IE |= BIT0;
-        //__enable_irq();
     }
 }
