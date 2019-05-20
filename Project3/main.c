@@ -9,6 +9,9 @@
  */
 
 #define NUM_SAMPLES 50
+#define DC_DIVIDER 5000.0
+#define PK_DIVIDER 4948.0
+#define RMS_DIVIDER 7780.0
 enum State {DC = 0, AC = 1};
 
 char state;
@@ -21,10 +24,6 @@ volatile int pk_pk;
 int countTimer = 0;
 int countEdges = 0;
 
-float calibrateVoltage(int adc)
-{
-    return adc/4948.0;
-}
 
 void printChar(char letter)
 {
@@ -158,7 +157,7 @@ void ADC14_IRQHandler()
     volatile uint16_t readValue;
     readValue = ADC14->MEM[0]; //read ADC value (clears interrupt when reading value
 
-    vrms += calibrateVoltage(readValue)*calibrateVoltage(readValue);
+    vrms += ((float)readValue * readValue)/(RMS_DIVIDER * RMS_DIVIDER);
 
     if(readValue > max)
     {
@@ -248,11 +247,13 @@ void main(void)
         convertDecToAscii((float)freq);
 
         printStr("DC offset: ", 11);
-        convertedDC = calibrateVoltage((max + min)/2);
+        convertedDC = (max + min)/2/DC_DIVIDER;
+        //convertedDC = calibrateVoltage((max + min)/2);
         convertDecToAscii(convertedDC);
 
         printStr("Peak to Peak: ", 14);
-        convertedPk = calibrateVoltage(max - min);
+        convertedPk = (max - min)/PK_DIVIDER;
+        //convertedPk = calibrateVoltage(max - min);
         convertDecToAscii(convertedPk);
 
         printStr("Vrms: ", 6);
