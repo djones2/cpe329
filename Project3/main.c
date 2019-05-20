@@ -10,8 +10,8 @@
 
 #define NUM_SAMPLES 50
 #define DC_DIVIDER 5000.0
-#define PK_DIVIDER 5050.0//4950.0
-#define RMS_DIVIDER 5060.0
+#define PK_DIVIDER 4950.0
+#define RMS_DIVIDER 5100.0
 enum State {DC = 0, AC = 1};
 
 int bool = 0;
@@ -127,7 +127,7 @@ void EUSCIA0_IRQHandler(void)
 void TA0_0_IRQHandler(void){
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
 
-    if (countTimer == NUM_SAMPLES)   //time is 1 sec
+    if (countTimer == 51)//NUM_SAMPLES)   //time is 1 sec
     {
         //TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;      //disable interrupts for the freq calculations
         P3->IE &= ~BIT0; //disable interrupting for rising edges
@@ -137,7 +137,7 @@ void TA0_0_IRQHandler(void){
         min = 16383;
         countEdges = 0;
         countTimer = 0;
-        bool = 0;
+        //bool = 0;
     }
     else
     {
@@ -345,7 +345,7 @@ void main(void)
     TIMER_A0->CTL |= (TIMER_A_CTL_TASSEL_2|TIMER_A_CTL_MC_1 | TIMER_A_CTL_ID_3); // Use SMCLK in up mode and divide by 8
     TIMER_A0->EX0 |= TIMER_A_EX0_TAIDEX_1; //clock divide by 2 --> TIMER A0 runs on 3 MHz clock
 
-     TIMER_A0->CCR[0] = 60200;      // Period = 1 sec
+     TIMER_A0->CCR[0] = 59130;      // Period = 1 sec
      TIMER_A0->CCR[1] = 1000; // Fix value in sampleData() function
 
      TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;      // Enable interrupts on TIMER_A0
