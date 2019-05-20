@@ -10,8 +10,8 @@
 
     #define NUM_SAMPLES 50
     #define DC_DIVIDER 5000.0
-    #define PK_DIVIDER 4948.0
-    #define RMS_DIVIDER 7780.0
+    #define PK_DIVIDER 4950 //4948.0
+    #define RMS_DIVIDER 5060.0 //7780.0
     enum State {DC = 0, AC = 1};
 
     int bool = 0;
@@ -183,7 +183,8 @@
         int fr;
         bool = 1;
         TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;
-        while(bool==1);
+        //while(bool==1);
+        _delay_cycles(96000000);
         TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE;
         ADC14->IER0 = ADC14_IER0_IE0; //enable interrupts on mem[0]
         fr = NUM_SAMPLES * freq;
@@ -219,7 +220,7 @@
         TIMER_A0->CTL |= (TIMER_A_CTL_TASSEL_2|TIMER_A_CTL_MC_1 | TIMER_A_CTL_ID_3); // Use SMCLK in up mode and divide by 8
         TIMER_A0->EX0 |= TIMER_A_EX0_TAIDEX_1; //clock divide by 2 --> TIMER A0 runs on 3 MHz clock
 
-         TIMER_A0->CCR[0] = 59460;//59130;      // Period = 1 sec
+         TIMER_A0->CCR[0] = 59800;//59130;      // Period = 1 sec
          TIMER_A0->CCR[1] = 1000; // Fix value in sampleData() function
 
          TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;      // Enable interrupts on TIMER_A0
@@ -279,4 +280,6 @@
             P3->IE |= BIT0;
         }
     }
+
+
 
