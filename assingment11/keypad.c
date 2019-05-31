@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <msp.h>
 #include <msp432p401r.h>
-#include "LCD.h"
+//#include "LCD.h"
 #include "keypad.h"
 #include "set_DCO.h"
 #include "delay.h"
@@ -59,7 +59,7 @@ uint8_t key_press()
     return key;
 }
 
-void keypad_to_LCD()
+/*void keypad_to_LCD()
 {
     delay_us(40);
     uint8_t c = key_press();
@@ -73,5 +73,7 @@ void keypad_to_LCD()
         delay_us(40000);
     }
 }
+*/
+
 
 
