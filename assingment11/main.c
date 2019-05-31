@@ -11,7 +11,7 @@
 void TA0_0_IRQHandler(void)
 {
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;      //clears the interrupt flag
-    P5->OUT |= BIT0;                               //toggle LED
+    P3->OUT |= BIT0;                               //toggle LED
     TIMER_A0->CCR[0] += 60000;
 }
 
@@ -20,7 +20,7 @@ void TA0_N_IRQHandler(void){
     if(TIMER_A0->CCTL[1] & TIMER_A_CCTLN_CCIFG)
     {
         TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;  //clears the interrupt flags
-        P5->OUT &= ~BIT0;                            //turns on the LED
+        P3->OUT &= ~BIT0;                            //turns on the LED
         TIMER_A0->CCR[1] += 60000;
     }
 
@@ -28,7 +28,7 @@ void TA0_N_IRQHandler(void){
 
 void main(void)
 {
-    uint8_t c;
+    uint8_t c, i;
     int tens_digit;
     uint8_t input[2];
     int degrees;
@@ -41,9 +41,9 @@ void main(void)
     CS->CTL1 |= CS_CTL1_DIVS_0 | CS_CTL1_SELS_3; //set SELS and DIVS to source DCO and divide by 1
     CS->KEY = 0; // lock the CS registers
 
-    P5->DIR |= BIT0;
-    P5->SEL0 &= ~BIT0;
-    P5->SEL1 &= ~BIT0; //P5.0 output GPIO
+    P3->DIR |= BIT0;
+    P3->SEL0 &= ~BIT0;
+    P3->SEL1 &= ~BIT0; //P5.0 output GPIO
 
     //initialize TimerA
     TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
@@ -66,7 +66,9 @@ void main(void)
 
 	while(1)
 	{
-	    c = key_press();
+	    i = key_press();
+	    if(i != NULLCHAR)
+	        c = i;
 	    if(c == '*')
 	    {
 	        //move 10 degrees clockwise
@@ -97,7 +99,7 @@ void main(void)
 	        degrees = input[1] - '0';
 	        degrees *=10;
 	        degrees += input[0] - '0';
-	        CCR[1] += degrees; //will need to change
+	        TIMER_A0->CCR[1] += degrees; //will need to change
 	    }
 	}
 }
