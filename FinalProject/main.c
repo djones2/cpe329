@@ -1,11 +1,20 @@
 #include "msp.h"
 #include "set_DCO.h"
-
+#include <stdint.h>
+#include "delay.h"
 /**
  * main.c
  */
 
 volatile int count = 0;
+volatile uint32_t width = 0;
+volatile int score = 0;
+volatile int high_score = 0;
+volatile int previous_score = 0;
+volatile int bonus = 0;
+volatile int timer;
+enum State {start = 0, play = 1};
+char state = start;
 
 void screen_init_start();
 void screen_init_play();
@@ -23,7 +32,7 @@ void printStr(char* str, int length)
 
     for(i=0; i<length; i++)
     {
-            printChar(str[i]);
+        printChar(str[i]);
     }
 }
 
@@ -45,28 +54,78 @@ void convertDecToAscii(float value)
     printStr("\e[2C", 4);
 }
 
+convertToString(int value)
+{
+    char str[3];
+    str[0] = value + '0';
+    str[1] = value + '0';
+    str[2] = '\0';
+    printStr(str, 2);
+}
+
+void initUART(void)
+{
+    EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SWRST; //get into reset state
+
+    EUSCI_A0->CTLW0 = EUSCI_A_CTLW0_PEN //parity odd
+            | EUSCI_A_CTLW0_SPB // 2 stop bits
+            | EUSCI_A_CTLW0_MODE_0 // UART mode
+            | EUSCI_A_CTLW0_UCSSEL_2 //SMCLK
+            | EUSCI_A_CTLW0_SWRST; //keep in reset
+
+    EUSCI_A0->BRW = 0x1A; // UCBRx calculation
+
+    EUSCI_A0->MCTLW = (1 << EUSCI_A_MCTLW_BRS_OFS)  //set UCSRx to 1
+                | (1 << EUSCI_A_MCTLW_BRF_OFS) //set UCBRFx to 1
+                | EUSCI_A_MCTLW_OS16; //set 0S16 = 1
+
+    P1->SEL0 |= (BIT2|BIT3); //select EUSCI_A0
+    P1->SEL1 &= ~(BIT2|BIT3);
+
+    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SWRST; //take out of reset mode
+
+    EUSCI_A0->IE |= EUSCI_A_IE_RXIE; //enable USCI_A0 RX interrupts
+
+    NVIC->ISER[0] |= 1 <<(EUSCIA0_IRQn & 31);
+}
+
+
 void TA0_0_IRQHandler()
 {
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;          //clear the interrupt flag
-    P5->OUT &= ~BIT0; // Trig = high for 10 us
-    TIMER_A0->CCR[0] += 65535;
-}
-
-void TA0_N_IRQHandler()
-{
-
-    if(TIMER_A0->CCTL[1] & TIMER_A_CCTLN_CCIFG)
+    if(count == 50)
     {
-        TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;
-        if(count == 2)
+        timer --;
+        if(timer == 0)
         {
-            P5->OUT |= BIT0; //Trig = low
-            count = 0;
+            if(score >= 10 && bonus == 0)
+            {
+                bonus = 1;
+                timer += 30; //30 bonus seconds
+            }
+            else if(score >=15 && bonus == 1)
+            {
+
+            }
+            else
+            {
+                if(score > high_score)
+                {
+                    high_score = score;
+                }
+                previous_score = score;
+                bonus = 0;
+                score = 0;
+                timer = 60;
+                delay_us(3000000); //delay 3s till showing start
+                screen_init_start();
+            }
         }
-        else
-            count ++;
     }
-    TIMER_A0->CCR[1] += 65535;
+    else
+    {
+        count ++;
+    }
 }
 
 void EUSCIA0_IRQHandler(void)
@@ -79,17 +138,17 @@ void EUSCIA0_IRQHandler(void)
 
         // get user input
         letter = EUSCI_A0->RXBUF;   //receive character
-	    
+
         if (letter == 'q')
         {
-            state = DC;
+            state = start;
             screen_init_start();
 
         }
         else if (letter == 's')
         {
-            state = AC;
-            screen_init_DC();
+            state = play;
+            screen_init_play();
         }
     }
 }
@@ -107,46 +166,72 @@ void screen_init_play(){
      printStr("- Press 'q' to quit the game -", 32);
      printStr("\e[H", 4);
      printStr("\e[11C", 5);
+     delay_us(3000000); // start timer in 3 seconds
+     TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled (start timer)
 }
 
-
+void screen_init_start(){
+     printStr("\e[5m", 4); // blinking mode to see cursor
+     printStr("\e[2J", 4); // clear
+     printStr("\e[H", 4);  // set cursor home
+     printStr("HIGH SCORE: ", 13);
+     printStr("\e[E", 3);
+     printStr("\e[E", 3);
+     printStr("- Press 's' to start the game -", 33);
+     printStr("\e[E", 3);
+     printStr("\e[E", 3);
+     printStr("- Press 'q' to quit the game -", 32);
+     printStr("\e[H", 4);
+     printStr("\e[11C", 5);
+     delay_us(3000000); // start timer in 3 seconds
+     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE; // TACCR0 interrupt disabled (disable timer)
+}
 
 void main(void)
 {
-    int read = 0;
-	WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;		// stop watchdog timer
+    WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
 
-	set_DCO(FREQ_3_MHz);
+    set_DCO(FREQ_3_MHz);
 
-	P5->SEL0 &= ~(BIT1|BIT0);
-	P5->SEL1 &= ~(BIT0|BIT1);
-	P5->DIR |= BIT0; //set P5.0 to output (for Trig)
-	P5->DIR &= ~BIT1; //set P5.1 to input (for Echo)
-	P5->REN |= BIT1;
-	P5->OUT &= ~BIT1; //enable pull down resistor
+    initUART();
 
+    P5->SEL0 &= ~(BIT1|BIT0);
+    P5->SEL1 &= ~(BIT0|BIT1);
+    P5->DIR |= BIT0; //set P5.0 to output (for Trig)
+    P5->DIR &= ~BIT1; //set P5.1 to input (for Echo)
+    P5->REN |= BIT1;
+    P5->OUT &= ~BIT1; //enable pull down resistor
 
-	TIMER_A0->CTL |= TIMER_A_CTL_SSEL__SMCLK | // SMCLK, up mode
-	                        TIMER_A_CTL_MC__CONTINUOUS;
-	TIMER_A0->CCR[0] = 30;
-	TIMER_A0->CCR[1] = 65535; // 10 us trig pulse
-	TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
-	TIMER_A0->CCTL[1] |= TIMER_A_CCTLN_CCIE; // TACCR1 interrupt enabled
+    TIMER_A0->CTL |= TIMER_A_CTL_SSEL__SMCLK | // SMCLK, up mode
+                            TIMER_A_CTL_MC__UP;
+    TIMER_A0->CCR[0] = 60000;
+    //TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
 
-	// Enable CCR0/1 ISR
-	NVIC->ISER[0] = 1 << (TA0_0_IRQn & 31);
-	NVIC->ISER[0] = 1 << (TA0_N_IRQn & 31);
+    // Enable CCR0/1 ISR
+    NVIC->ISER[0] = 1 << (TA0_0_IRQn & 31);
 
-	// Enable global interrupts
-	__enable_irq();
-	
-	if(state==0)
-        	screen_init_start();
-        else
-          	screen_init_play();
-
-	while(1)
-	{
-	    read = (P5->IN & BIT1);
-	}
+    // Enable global interrupts
+    __enable_irq();
+    timer = 60;
+    //if(state==start)
+    //    screen_init_start();
+    //else
+    //    screen_init_play();
+    screen_init_start();
+    while(1)
+    {
+        if(state == play)
+        {
+            width = 0;
+            P5->OUT |= BIT0;
+            delay_us(50);
+            P5->OUT &= ~BIT0;
+            delay_us(448);
+            while(P5->IN & BIT1)
+            {
+                width ++;
+            }
+            delay_us(3000000); //over 60 ms measurement cycle
+        }
+    }
 }
