@@ -20,6 +20,7 @@ char state;
 
 void screen_init_start();
 void screen_init_play();
+void update_screen_play();
 
 void printChar(char letter)
 {
@@ -53,15 +54,15 @@ void convertDecToAscii(float value)
     str[6] = (num % 10) + '0';       //set the 0.01's place
     str[7] = '\0';
 
-    printStr(str, 7);
+    printStr(str, 2);
     printStr("\e[2C", 4);
 }
 
 convertToString(int value)
 {
     char str[3];
-    str[0] = value + '0';
-    str[1] = value + '0';
+    str[0] = value/10 + '0';
+    str[1] = value%10 + '0';
     str[2] = '\0';
     printStr(str, 2);
 }
@@ -123,9 +124,12 @@ void EUSCIA0_IRQHandler(void)
 void TA0_0_IRQHandler()
 {
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;          //clear the interrupt flag
+    //update_screen_play();
     if(count == 50)
     {
+        update_screen_play();
         timer --;
+        count = 0;
         if(timer == 0)
         {
             if(score >= 10 && bonus == 0)
@@ -147,7 +151,8 @@ void TA0_0_IRQHandler()
                 bonus = 0;
                 score = 0;
                 timer = 60;
-                delay_us(3000000); //delay 3s till showing start
+                //delay_us(3000000); //delay 3s till showing start
+                printStr("\e[2J", 4);
                 screen_init_start();
             }
         }
@@ -160,73 +165,57 @@ void TA0_0_IRQHandler()
 
 
 void screen_init_play(){
-    printStr("\e[5m", 4); // blinking mode to see cursor
-    printStr("\e[2J", 4); // clear
-    printStr("\e[H", 4);  // set cursor home
-    printStr("play: ", 11);
-    printStr("\e[E", 3);
-    printStr("DC: ", 4);
-    printStr("\e[E", 3);
-    printStr("\e[5C", 4);
-    printStr("0", 1);
-    printStr("\e[8C", 5);
-    printStr("1", 1);
-    printStr("\e[9C", 5);
-    printStr("2", 1);
-    printStr("\e[9C", 5);
-    printStr("3V", 2);
-    printStr("\e[H", 4);
-    printStr("\e[11C", 5);
-
-//     printStr("\e[5m", 4); // blinking mode to see cursor
-//     printStr("\e[2J", 4); // clear
-//     printStr("\e[H", 4);  // set cursor home
-//     printStr("SCORE: ", 8);
-//     printStr("\e[E", 3);
-//     printStr("\e[E", 3);
-//     printStr("Time remaining: ", 17);
-//     printStr("\e[E", 3);
-//     printStr("\e[E", 3);
-//     printStr("- Press 'q' to quit the game -", 32);
-//     printStr("\e[H", 4);
-//     printStr("\e[11C", 5);
-////     delay_us(3000000); // start timer in 3 seconds
-////     TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled (start timer)
+     //count = 0;
+     //printStr("\e[5m", 4); // blinking mode to see cursor
+     printStr("\e[2J", 4); // clear
+     printStr("\e[H", 4);  // set cursor home
+     printStr("SCORE: ", 8);
+     printStr("\e[E", 3);
+     printStr("\e[E", 3);
+     printStr("Time remaining: ", 17);
+     printStr("\e[E", 3);
+     printStr("\e[E", 3);
+     printStr("- Press 'q' to quit the game -", 31);
+     printStr("\e[H", 4);
+     printStr("\e[9C", 5);
+     delay_us(3000000); // start timer in 3 seconds
+     TIMER_A0->CCTL[0] |= TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled (start timer)
 }
 
 void screen_init_start(){
-    printStr("\e[5m", 4); // blinking mode to see cursor
-    printStr("\e[2J", 4); // clear
-    printStr("\e[H", 4);  // set cursor home
-    printStr("start: ", 11);
-    printStr("\e[E", 3);
-    printStr("DC: ", 4);
-    printStr("\e[E", 3);
-    printStr("\e[5C", 4);
-    printStr("0", 1);
-    printStr("\e[8C", 5);
-    printStr("1", 1);
-    printStr("\e[9C", 5);
-    printStr("2", 1);
-    printStr("\e[9C", 5);
-    printStr("3V", 2);
-    printStr("\e[H", 4);
-    printStr("\e[11C", 5);
-
-//     printStr("\e[5m", 4); // blinking mode to see cursor
-//     printStr("\e[2J", 4); // clear
-//     printStr("\e[H", 4);  // set cursor home
-//     printStr("HIGH SCORE: ", 13);
-//     printStr("\e[E", 3);
-//     printStr("\e[E", 3);
-//     printStr("- Press 's' to start the game -", 33);
-//     printStr("\e[E", 3);
-//     printStr("\e[E", 3);
-//     printStr("- Press 'q' to quit the game -", 32);
-//     printStr("\e[H", 4);
+//    printStr("\e[2J", 4);
+//    TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE; // TACCR0 interrupt disabled (disable timer)
+     printStr("\e[2J", 4);
+     printStr("\e[2J", 4);
+     printStr("\e[2J", 4);
+     //printStr("\e[5m", 4); // blinking mode to see cursor
+     printStr("\e[2J", 4); // clear
+     printStr("\e[H", 4);  // set cursor home
+     printStr("WELCOME TO DESKTOP BASKETBALL", 30);
+     printStr("\e[E", 3);
+     printStr("\e[E", 3);
+     printStr("HIGH SCORE: ", 13);
+     printStr("\e[E", 3);
+     printStr("\e[E", 3);
+     printStr("LAST SCORE: ", 13);
+     printStr("\e[E", 3);
+     printStr("\e[E", 3);
+     printStr("- Press 's' to start the game -", 32);
+     printStr("\e[H", 4);
 //     printStr("\e[11C", 5);
-////     delay_us(3000000); // start timer in 3 seconds
-////     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE; // TACCR0 interrupt disabled (disable timer)
+//     delay_us(3000000); // start timer in 3 seconds
+     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE; // TACCR0 interrupt disabled (disable timer)
+}
+
+void update_screen_play(){
+    convertToString(score);
+    printStr("\e[1B", 4);
+    printStr("\e[1B", 4);
+    printStr("\e[5C", 5);
+    convertToString(timer);
+    printStr("\e[H", 4);
+    printStr("\e[9C", 5);
+
 }
 
 void main(void)
@@ -257,15 +246,16 @@ void main(void)
     // Enable global interrupts
     __enable_irq();
     timer = 60;
-    if(state==1)
-             screen_init_start();
-         else
-             screen_init_play();
+    printStr("\e[2J", 4);
+    if(state==start){
+        printStr("\e[2J", 4);
+        screen_init_start();
+    }
+    else
+        screen_init_play();
     while(1)
     {
-        //screen_init_start();
-        if(state == play)
-        {
+        if(state == play){
             width = 0;
             P5->OUT |= BIT0;
             delay_us(50);
