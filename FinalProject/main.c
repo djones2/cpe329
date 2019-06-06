@@ -21,6 +21,7 @@ char state;
 void screen_init_start();
 void screen_init_play();
 void update_screen_play();
+void update_screen_start();
 
 void printChar(char letter)
 {
@@ -109,7 +110,7 @@ void EUSCIA0_IRQHandler(void)
         {
             state = start;
             screen_init_start();
-
+            update_screen_start();
         }
         else if (letter == 's')
         {
@@ -124,9 +125,10 @@ void EUSCIA0_IRQHandler(void)
 void TA0_0_IRQHandler()
 {
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;          //clear the interrupt flag
-    //update_screen_play();
     if(count == 50)
     {
+        if (width < 800)
+           score++;
         update_screen_play();
         timer --;
         count = 0;
@@ -137,10 +139,10 @@ void TA0_0_IRQHandler()
                 bonus = 1;
                 timer += 30; //30 bonus seconds
             }
-            else if(score >=15 && bonus == 1)
-            {
-
-            }
+//            else if(score >=15 && bonus == 1)
+//            {
+//
+//            }
             else
             {
                 if(score > high_score)
@@ -153,7 +155,10 @@ void TA0_0_IRQHandler()
                 timer = 60;
                 //delay_us(3000000); //delay 3s till showing start
                 printStr("\e[2J", 4);
+
                 screen_init_start();
+                update_screen_start();
+                //screen_init_start();
             }
         }
     }
@@ -183,13 +188,8 @@ void screen_init_play(){
 }
 
 void screen_init_start(){
-//    printStr("\e[2J", 4);
+    printStr("\e[2J", 4);
 //    TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE; // TACCR0 interrupt disabled (disable timer)
-     printStr("\e[2J", 4);
-     printStr("\e[2J", 4);
-     printStr("\e[2J", 4);
-     //printStr("\e[5m", 4); // blinking mode to see cursor
-     printStr("\e[2J", 4); // clear
      printStr("\e[H", 4);  // set cursor home
      printStr("WELCOME TO DESKTOP BASKETBALL", 30);
      printStr("\e[E", 3);
@@ -217,6 +217,19 @@ void update_screen_play(){
     printStr("\e[9C", 5);
 
 }
+
+void update_screen_start(){
+    printStr("\e[1B", 4);
+    printStr("\e[1B", 4);
+    printStr("\e[12C", 5);
+    convertToString(high_score);
+    printStr("\e[1B", 4);
+    printStr("\e[1B", 4);
+    printStr("\e[2D", 5);
+    convertToString(previous_score);
+    printStr("\e[H", 4);
+}
+
 
 void main(void)
 {
@@ -248,11 +261,13 @@ void main(void)
     timer = 60;
     printStr("\e[2J", 4);
     if(state==start){
-        printStr("\e[2J", 4);
         screen_init_start();
+        update_screen_start();
     }
-    else
+    else{
+    state = play;
         screen_init_play();
+    }
     while(1)
     {
         if(state == play){
@@ -265,6 +280,7 @@ void main(void)
             {
                 width ++;
             }
+
             delay_us(3000000); //over 60 ms measurement cycle
         }
     }
