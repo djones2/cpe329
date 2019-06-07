@@ -8,8 +8,9 @@
  * main.c
  */
 
+int score_flag = 0;
 volatile int count = 0;
-volatile uint32_t width = 0;
+volatile uint32_t width;
 volatile int score = 0;
 volatile int high_score = 0;
 volatile int previous_score = 0;
@@ -78,11 +79,11 @@ void initUART(void)
             | EUSCI_A_CTLW0_UCSSEL_2 //SMCLK
             | EUSCI_A_CTLW0_SWRST; //keep in reset
 
-    EUSCI_A0->BRW = 0x01; // UCBRx calculation
+    EUSCI_A0->BRW = 0x1A; // UCBRx calculation
 
-    EUSCI_A0->MCTLW = (0 << EUSCI_A_MCTLW_BRS_OFS)  //set UCSRx to 1
-                | (10 << EUSCI_A_MCTLW_BRF_OFS) //set UCBRFx to 1
-                | EUSCI_A_MCTLW_OS16; //set 0S16 = 1
+    EUSCI_A0->MCTLW = (1 << EUSCI_A_MCTLW_BRS_OFS)  //set UCSRx to 1
+                    | (1 << EUSCI_A_MCTLW_BRF_OFS) //set UCBRFx to 1
+                    | EUSCI_A_MCTLW_OS16; //set 0S16 = 1
 
     P1->SEL0 |= (BIT2|BIT3); //select EUSCI_A0
     P1->SEL1 &= ~(BIT2|BIT3);
@@ -110,10 +111,13 @@ void EUSCIA0_IRQHandler(void)
         {
             state = start;
             screen_init_start();
-            update_screen_start();
+            score = 0;
+            timer = 60;
+ //           update_screen_start();
         }
         else if (letter == 's')
         {
+            score = 0;
             state = play;
             screen_init_play();
         }
@@ -125,12 +129,16 @@ void EUSCIA0_IRQHandler(void)
 void TA0_0_IRQHandler()
 {
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;          //clear the interrupt flag
-    if(count == 50)
+    if(count == 800)
     {
-        if (width < 800)
+        if (score_flag > 0){
            score++;
-        update_screen_play();
+           score_flag = 0;
+        }
+
         timer --;
+        update_screen_play();
+        //timer --;
         count = 0;
         if(timer == 0)
         {
@@ -139,12 +147,7 @@ void TA0_0_IRQHandler()
                 bonus = 1;
                 timer += 30; //30 bonus seconds
             }
-//            else if(score >=15 && bonus == 1)
-//            {
-//
-//            }
-            else
-            {
+            else{
                 if(score > high_score)
                 {
                     high_score = score;
@@ -153,13 +156,11 @@ void TA0_0_IRQHandler()
                 bonus = 0;
                 score = 0;
                 timer = 60;
-                //delay_us(3000000); //delay 3s till showing start
-                printStr("\e[2J", 4);
-
+                //update_screen_start();
                 screen_init_start();
-                update_screen_start();
-                //screen_init_start();
+                //update_screen_start();
             }
+
         }
     }
     else
@@ -191,7 +192,7 @@ void screen_init_start(){
     printStr("\e[2J", 4);
 //    TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE; // TACCR0 interrupt disabled (disable timer)
      printStr("\e[H", 4);  // set cursor home
-     printStr("WELCOME TO DESKTOP BASKETBALL", 30);
+     printStr("WELCOME TO DESKTOP BASKETBALL!", 31);
      printStr("\e[E", 3);
      printStr("\e[E", 3);
      printStr("HIGH SCORE: ", 13);
@@ -202,6 +203,7 @@ void screen_init_start(){
      printStr("\e[E", 3);
      printStr("- Press 's' to start the game -", 32);
      printStr("\e[H", 4);
+     update_screen_start();
 //     printStr("\e[11C", 5);
 //     delay_us(3000000); // start timer in 3 seconds
      TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIE; // TACCR0 interrupt disabled (disable timer)
@@ -235,7 +237,7 @@ void main(void)
 {
     WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
 
-    set_DCO(FREQ_3_MHz);
+    set_DCO(FREQ_48_MHz);
 
     initUART();
 
@@ -263,25 +265,30 @@ void main(void)
     if(state==start){
         screen_init_start();
         update_screen_start();
+        score = 0;
     }
     else{
     state = play;
         screen_init_play();
-    }
+   }
     while(1)
     {
         if(state == play){
+            //score_flag = 0;
             width = 0;
             P5->OUT |= BIT0;
-            delay_us(50);
+            delay_us(10);
             P5->OUT &= ~BIT0;
+            //__disable_irq();
             delay_us(448);
             while(P5->IN & BIT1)
             {
                 width ++;
             }
-
-            delay_us(3000000); //over 60 ms measurement cycle
+            if (width < 2000)
+                score_flag = 1;
+            //__enable_irq();
+            delay_us(8000);
         }
     }
 }
